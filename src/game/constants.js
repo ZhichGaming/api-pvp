@@ -21,7 +21,7 @@ module.exports = {
   // Combat
   BULLET_DAMAGE: 25,
   BULLET_SPEED: 2,               // units per tick
-  BULLET_SIZE: 0.5,              // collision radius
+  BULLET_SIZE: 0.7,              // collision radius
   BULLET_MAX_LIFETIME_TICKS: 50, // 2.5 seconds at 20 TPS
   MAX_BULLETS_PER_PLAYER: 5,
 
@@ -30,7 +30,7 @@ module.exports = {
   RELOAD_COOLDOWN_TICKS: 10,     // 0.5s cooldown
 
   // Rate limiting
-  MAX_ACTIONS_PER_SECOND: 20,
+  MAX_ACTIONS_PER_SECOND: 30,
 
   // Battle
   MAX_BATTLE_DURATION_TICKS: 2400, // 2 minutes at 20 TPS

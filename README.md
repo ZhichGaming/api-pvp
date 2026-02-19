@@ -105,7 +105,7 @@ GET /state?player_id=p_a1b2c3d4   → zoomed-in player state
 | Max bullets per player | 5 |
 | Reload cooldown | 10 ticks (0.5 sec) |
 | Tick Rate | 20 TPS (50ms per tick) |
-| Rate Limit | 20 actions/sec per player |
+| Rate Limit | 30 actions/sec per player |
 
 ## Game Flow
 
