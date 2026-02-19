@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API PVP — Keyboard Client</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     SETUP SCREEN — shown before registration
+     ══════════════════════════════════════════════════ -->
+<div id="setup-screen" class="screen active">
+  <div class="card setup-card">
+    <h1>⚔️ API PVP</h1>
+    <p class="subtitle">Keyboard control client — no visuals, just chaos.</p>
+
+    <label>Server URL
+      <input id="server-url" type="url" value="https://api-pvp-production.up.railway.app"
+             placeholder="https://api-pvp-production.up.railway.app" />
+    </label>
+
+    <label>Username
+      <input id="username" type="text" maxlength="20" placeholder="Enter your name" autocomplete="off" />
+    </label>
+
+    <button id="register-btn" class="btn-primary">Register &amp; Connect</button>
+
+    <p id="setup-error" class="error-msg hidden"></p>
+
+    <div class="keybind-preview">
+      <div class="kb-row">
+        <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span>
+        <span class="key-label">/ arrow keys — Move</span>
+      </div>
+      <div class="kb-row">
+        <span class="key dir-key">↑</span><span class="key dir-key">←</span>
+        <span class="key dir-key">↓</span><span class="key dir-key">→</span>
+        <span class="key-label">Shoot direction</span>
+      </div>
+      <div class="kb-row">
+        <span class="key wide">Space</span><span class="key-label">Shoot (last direction)</span>
+      </div>
+      <div class="kb-row">
+        <span class="key wide">Shift</span><span class="key-label">Shield</span>
+      </div>
+      <div class="kb-row">
+        <span class="key">R</span><span class="key-label">Reload</span>
+        <span class="key">F</span><span class="key-label">Dash (move direction)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     GAME SCREEN — shown after registration
+     ══════════════════════════════════════════════════ -->
+<div id="game-screen" class="screen">
+
+  <!-- Top bar: player info + mode badge -->
+  <header id="top-bar">
+    <div class="player-id-block">
+      <span id="display-name" class="player-name">—</span>
+      <span id="player-id-display" class="player-id">—</span>
+    </div>
+    <div id="mode-badge" class="badge badge-sandbox">SANDBOX</div>
+    <button id="disconnect-btn" class="btn-ghost">Disconnect</button>
+  </header>
+
+  <main>
+    <div class="cols">
+
+      <!-- ── Left: stats ── -->
+      <section class="card stats-card">
+        <h2>Status</h2>
+
+        <div class="stat-row">
+          <span class="stat-label">HP</span>
+          <div class="bar-wrap">
+            <div id="bar-hp" class="bar bar-hp" style="width:100%"></div>
+          </div>
+          <span id="val-hp" class="stat-val">100</span>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-label">Ammo</span>
+          <div class="ammo-pips" id="ammo-pips">
+            <!-- JS fills these -->
+          </div>
+          <span id="val-ammo" class="stat-val">5/5</span>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-label">Energy</span>
+          <div class="bar-wrap">
+            <div id="bar-energy" class="bar bar-energy" style="width:100%"></div>
+          </div>
+          <span id="val-energy" class="stat-val">25</span>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-label">Kills</span>
+          <span id="val-kills" class="stat-val big">0</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Cooldown / state indicators -->
+        <div class="cooldown-row">
+          <div id="ind-shield"  class="indicator">🛡 Shield</div>
+          <div id="ind-reload"  class="indicator">🔄 Reload CD</div>
+          <div id="ind-dead"    class="indicator hidden">💀 Dead</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Action result feedback -->
+        <div id="last-action" class="last-action">—</div>
+      </section>
+
+      <!-- ── Middle: keybind map ── -->
+      <section class="card keys-card">
+        <h2>Controls</h2>
+
+        <div class="key-block">
+          <div class="key-group-label">Move</div>
+          <div class="wasd">
+            <div class="wasd-row"><div id="k-w"  class="kbox">W</div></div>
+            <div class="wasd-row">
+              <div id="k-a" class="kbox">A</div>
+              <div id="k-s" class="kbox">S</div>
+              <div id="k-d" class="kbox">D</div>
+            </div>
+            <div class="wasd-row muted">or arrow keys</div>
+          </div>
+        </div>
+
+        <div class="key-block">
+          <div class="key-group-label">Shoot direction</div>
+          <div class="wasd">
+            <div class="wasd-row"><div id="k-up"    class="kbox">↑</div></div>
+            <div class="wasd-row">
+              <div id="k-left"  class="kbox">←</div>
+              <div id="k-down"  class="kbox">↓</div>
+              <div id="k-right" class="kbox">→</div>
+            </div>
+          </div>
+        </div>
+
+        <table class="key-table">
+          <tr><td><div id="k-space" class="kbox wide">Space</div></td>
+              <td>Shoot (last dir)</td></tr>
+          <tr><td><div id="k-shift" class="kbox wide">Shift</div></td>
+              <td>Shield <span class="cost">(5⚡)</span></td></tr>
+          <tr><td><div id="k-r"     class="kbox">R</div></td>
+              <td>Reload <span class="cost">(CD: 0.5s)</span></td></tr>
+          <tr><td><div id="k-f"     class="kbox">F</div></td>
+              <td>Dash <span class="cost">(8⚡)</span></td></tr>
+        </table>
+
+        <div class="divider"></div>
+        <div class="hint">
+          💡 Actions are <strong>blocked</strong> when you lack ammo/energy.<br>
+          They <strong>queue</strong> for 80ms if a cooldown is active.
+        </div>
+      </section>
+
+      <!-- ── Right: action log ── -->
+      <section class="card log-card">
+        <h2>Action Log <button id="clear-log" class="btn-tiny">clear</button></h2>
+        <div id="action-log"></div>
+      </section>
+
+    </div>
+
+    <!-- Links to server views -->
+    <div class="server-links">
+      <a id="link-bigscreen" href="#" target="_blank" class="server-link">📺 Big Screen</a>
+      <a id="link-monitor"   href="#" target="_blank" class="server-link">🎮 My Monitor</a>
+      <a id="link-api"       href="#" target="_blank" class="server-link">📋 /players</a>
+    </div>
+
+  </main>
+</div>
+
+<script src="client.js"></script>
+</body>
+</html>

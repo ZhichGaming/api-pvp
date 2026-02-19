@@ -1,0 +1,6 @@
+{
+  "name": "api-pvp-client",
+  "version": "1.0.0",
+  "description": "Keyboard control client for API PVP Arena — no visuals, pure API driver",
+  "private": true
+}

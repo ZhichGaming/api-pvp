@@ -44,7 +44,7 @@ module.exports = {
   ENERGY_REGEN_INTERVAL: 20,     // every 20 ticks (1 sec)
 
   // Rate limiting
-  MAX_ACTIONS_PER_SECOND: 5,
+  MAX_ACTIONS_PER_SECOND: 20,
 
   // Battle
   MAX_BATTLE_DURATION_TICKS: 2400, // 2 minutes at 20 TPS
