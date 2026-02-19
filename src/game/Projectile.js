@@ -1,4 +1,4 @@
-const { BULLET_SPEED, BULLET_MAX_LIFETIME_TICKS, BULLET_DAMAGE } = require('./constants');
+const { BULLET_SPEED, BULLET_MAX_LIFETIME_TICKS, BULLET_DAMAGE, BULLET_SIZE } = require('./constants');
 
 class Projectile {
   constructor(id, ownerId, x, y, dx, dy) {
@@ -12,7 +12,7 @@ class Projectile {
     this.alive = true;
     this.ticksLived = 0;
     this.maxLifetime = BULLET_MAX_LIFETIME_TICKS;
-    this.size = 0.25;             // collision radius
+    this.size = BULLET_SIZE;          // collision radius
   }
 
   tick() {

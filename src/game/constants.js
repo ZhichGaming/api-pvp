@@ -15,13 +15,14 @@ module.exports = {
   PLAYER_HP: 100,
   PLAYER_AMMO: 5,
   PLAYER_MAX_AMMO: 5,
-  PLAYER_SPEED: 1.5,              // units per action
+  PLAYER_SPEED: 0.5,             // units per action
   PLAYER_SIZE: 0.5,              // collision radius
 
   // Combat
   BULLET_DAMAGE: 25,
-  BULLET_SPEED: 5,               // units per tick (increased for faster bullets)
-  BULLET_MAX_LIFETIME_TICKS: 50, // 2.5 seconds at 20 TPS (increased for more range)
+  BULLET_SPEED: 2,               // units per tick
+  BULLET_SIZE: 0.5,              // collision radius
+  BULLET_MAX_LIFETIME_TICKS: 50, // 2.5 seconds at 20 TPS
   MAX_BULLETS_PER_PLAYER: 5,
 
   // Reload
