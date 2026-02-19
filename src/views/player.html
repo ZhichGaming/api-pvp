@@ -185,6 +185,14 @@ let playerName = '';
 let playerState = null;
 let ws = null;
 
+let renderSelf   = null;          // interpolated display position for self
+let renderNearby = {};            // id → {x, y} for nearby players
+let lastRafTimeP  = 0;
+let lastTickTimeP = 0;
+const BULLET_SPEED_PER_SEC = 100; // 5 units/tick × 20 ticks/s
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
 const canvas = document.getElementById('viewport');
 const ctx    = canvas.getContext('2d');
 const CELL   = 26;  // px per arena unit in the zoomed viewport
@@ -271,9 +279,17 @@ function connectWS() {
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === 'state') {
-      playerState = msg.data;
+      const incoming = msg.data;
+      // Initialise render positions for entities appearing for the first time
+      if (incoming.self && !renderSelf) {
+        renderSelf = { x: incoming.self.x, y: incoming.self.y };
+      }
+      (incoming.nearbyPlayers || []).forEach(p => {
+        if (!renderNearby[p.id]) renderNearby[p.id] = { x: p.x, y: p.y };
+      });
+      playerState = incoming;
+      lastTickTimeP = performance.now();
       updateHUD();
-      renderViewport();
     }
   };
 }
@@ -306,7 +322,8 @@ function updateHUD() {
 }
 
 // ── Viewport renderer — NEVER touches canvas.width / canvas.height ──
-function renderViewport() {
+function renderViewport(ts) {
+  ts = (ts != null) ? ts : performance.now();
   if (!playerState?.self) return;
 
   const self  = playerState.self;
@@ -316,9 +333,11 @@ function renderViewport() {
   const cx = W / 2;
   const cy = H / 2;
 
-  // Camera offset: keep self at viewport centre
-  const oX = cx - self.x * CELL;
-  const oY = cy - self.y * CELL;
+  // Camera follows the interpolated (smooth) self position
+  const camX = renderSelf ? renderSelf.x : self.x;
+  const camY = renderSelf ? renderSelf.y : self.y;
+  const oX = cx - camX * CELL;
+  const oY = cy - camY * CELL;
 
   ctx.clearRect(0, 0, W, H);
 
@@ -372,10 +391,11 @@ function renderViewport() {
     }
   }
 
-  // Projectiles
+  // Projectiles — extrapolated to current frame time for smooth motion
+  const dtProj = Math.min(0.05, (ts - lastTickTimeP) / 1000); // cap at one tick (50ms) to avoid over-shooting during lag
   for (const p of (playerState.nearbyProjectiles || [])) {
-    const px = p.x * CELL + oX;
-    const py = p.y * CELL + oY;
+    const px = (p.x + p.dx * BULLET_SPEED_PER_SEC * dtProj) * CELL + oX;
+    const py = (p.y + p.dy * BULLET_SPEED_PER_SEC * dtProj) * CELL + oY;
     ctx.fillStyle   = '#e67e22';
     ctx.shadowColor = 'rgba(230,126,34,0.5)';
     ctx.shadowBlur  = 8;
@@ -392,10 +412,13 @@ function renderViewport() {
   }
 
   // Other players
-  for (const p of (playerState.nearbyPlayers || [])) drawPlayer(p, oX, oY, false);
+  for (const p of (playerState.nearbyPlayers || [])) {
+    const rp = renderNearby[p.id];
+    drawPlayer(rp ? {...p, x: rp.x, y: rp.y} : p, oX, oY, false);
+  }
 
-  // Self (drawn on top)
-  drawPlayer(self, oX, oY, true);
+  // Self (drawn on top, using interpolated position)
+  drawPlayer(renderSelf ? {...self, x: renderSelf.x, y: renderSelf.y} : self, oX, oY, true);
 
   // Faint crosshair centred on self
   ctx.strokeStyle = 'rgba(0,0,60,0.05)';
@@ -462,6 +485,28 @@ function addLog(msg, type = 'ok') {
   log.prepend(line);
   while (log.children.length > MAX_LOG) log.removeChild(log.lastChild);
 }
+
+// ── 60fps render loop — interpolates players, extrapolates bullets ────────────
+requestAnimationFrame(function rafLoopP(ts) {
+  requestAnimationFrame(rafLoopP);
+  if (!playerState?.self) { lastRafTimeP = ts; return; }
+  const dt = lastRafTimeP > 0 ? Math.min(0.1, (ts - lastRafTimeP) / 1000) : 0;
+  lastRafTimeP = ts;
+  const t = Math.min(1, dt * 25); // factor 25 → ~87% of remaining distance covered per server tick
+
+  if (playerState.self) {
+    if (!renderSelf) renderSelf = { x: playerState.self.x, y: playerState.self.y };
+    renderSelf.x = lerp(renderSelf.x, playerState.self.x, t);
+    renderSelf.y = lerp(renderSelf.y, playerState.self.y, t);
+  }
+  (playerState.nearbyPlayers || []).forEach(p => {
+    if (!renderNearby[p.id]) renderNearby[p.id] = { x: p.x, y: p.y };
+    renderNearby[p.id].x = lerp(renderNearby[p.id].x, p.x, t);
+    renderNearby[p.id].y = lerp(renderNearby[p.id].y, p.y, t);
+  });
+
+  renderViewport(ts);
+});
 </script>
 </body>
 </html>

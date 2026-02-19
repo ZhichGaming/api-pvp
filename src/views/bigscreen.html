@@ -135,6 +135,7 @@
     transition: color 0.1s, border-color 0.1s;
   }
   .kick-btn:hover { color: #e74c3c; border-color: #e74c3c; }
+  .kick-btn.kick-confirm { color: #e74c3c; border-color: #e74c3c; background: #fde8e8; font-size: 0.68em; }
   .player-stat  { font-size: 0.72em; color: var(--dim); display: flex; justify-content: space-between; margin-bottom: 2px; }
   .hp-bar       { height: 5px; background: #e0e4f0; border-radius: 3px; margin-top: 3px; overflow: hidden; }
   .hp-bar-fill  { height: 100%; border-radius: 3px; transition: width 0.15s; }
@@ -232,6 +233,13 @@ var P = {
 
 var state = null;
 
+var renderPositions = {}; // player id → {x, y} interpolated display coords
+var lastRafTime = 0;
+var lastTickTime = 0;
+var BULLET_SPEED_PER_SEC = 100; // matches server: 5 units/tick × 20 ticks/s
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
 function resizeArenaCanvas() {
   if (!state || !state.arena) return;
   var wrap = document.getElementById('canvas-wrap');
@@ -253,12 +261,34 @@ function connectWS() {
   ws = new WebSocket(wsProtocol + '//' + location.host + '?type=bigscreen');
   ws.onmessage = function(e) {
     var msg = JSON.parse(e.data);
-    if (msg.type === 'state') { state = msg.data; tick(); }
+    if (msg.type === 'state') {
+      // Initialise render positions for players appearing for the first time
+      (msg.data.players || []).forEach(function(p) {
+        if (!renderPositions[p.id]) renderPositions[p.id] = { x: p.x, y: p.y };
+      });
+      state = msg.data;
+      lastTickTime = performance.now();
+      tick();
+    }
   };
   ws.onclose = function() { setTimeout(connectWS, 1000); };
   ws.onerror = function() { ws.close(); };
 }
 connectWS();
+
+// 60 fps render loop — interpolates player positions and extrapolates bullets
+requestAnimationFrame(function rafLoop(ts) {
+  requestAnimationFrame(rafLoop);
+  if (!state || !state.arena || state.mode === 'lobby') { lastRafTime = ts; return; }
+  var dt = lastRafTime > 0 ? Math.min(0.1, (ts - lastRafTime) / 1000) : 0;
+  lastRafTime = ts;
+  var lerpT = Math.min(1, dt * 25); // factor 25 → ~87% of remaining distance covered per server tick
+  (state.players || []).forEach(function(p) {
+    var rp = renderPositions[p.id];
+    if (rp) { rp.x = lerp(rp.x, p.x, lerpT); rp.y = lerp(rp.y, p.y, lerpT); }
+  });
+  render(ts);
+});
 
 function tick() {
   updateHeader();
@@ -266,7 +296,7 @@ function tick() {
     showLobby();
   } else {
     showArena();
-    render();
+    // render() is driven by the requestAnimationFrame loop below
   }
   updateSidebar();
 }
@@ -293,8 +323,9 @@ function showArena() {
   if (!arenaCanvas._scale) resizeArenaCanvas();
 }
 
-function render() {
+function render(ts) {
   if (!state || !state.arena) return;
+  ts = (ts != null) ? ts : performance.now();
   var s = arenaCanvas._scale || 1;
   var a = state.arena;
 
@@ -326,9 +357,11 @@ function render() {
   }
 
   var proj, px, py;
+  var dtProj = Math.min(0.05, (ts - lastTickTime) / 1000); // cap at one tick (50ms) to avoid over-shooting during lag
   for (var i = 0; i < (state.projectiles||[]).length; i++) {
     proj = state.projectiles[i];
-    px = proj.x*CELL*s; py = proj.y*CELL*s;
+    px = (proj.x + proj.dx * BULLET_SPEED_PER_SEC * dtProj)*CELL*s;
+    py = (proj.y + proj.dy * BULLET_SPEED_PER_SEC * dtProj)*CELL*s;
     ctx.fillStyle = P.bulletFill;
     ctx.shadowColor = P.bulletGlow;
     ctx.shadowBlur = 8*s;
@@ -342,10 +375,11 @@ function render() {
     ctx.stroke();
   }
 
-  var p, r, bW, bH, bX, bY, hpP;
+  var p, r, bW, bH, bX, bY, hpP, rp;
   for (var i = 0; i < (state.players||[]).length; i++) {
     p = state.players[i];
-    px = p.x*CELL*s; py = p.y*CELL*s;
+    rp = renderPositions[p.id] || p;
+    px = rp.x*CELL*s; py = rp.y*CELL*s;
     r = 0.4*CELL*s;
 
     if (!p.alive) {
@@ -405,7 +439,7 @@ function updateSidebar() {
     return '<div class="player-card ' + (p.alive===false?'dead':'') + '" style="border-left-color:' + (p.color||'#ccc') + '">' +
       '<div class="pcard-header">' +
         '<div class="player-name" style="color:' + (p.color||'#333') + '">' + esc(p.username) + '</div>' +
-        '<button class="kick-btn" onclick="kickPlayer(\'' + p.id + '\')">&#10005;</button>' +
+        '<button class="kick-btn' + (p.id === pendingKickId ? ' kick-confirm' : '') + '" onclick="kickPlayer(\'' + p.id + '\')">' + (p.id === pendingKickId ? '&#10003;?' : '&#10005;') + '</button>' +
       '</div>' +
       '<div class="player-stat"><span>HP</span><span>' + hp + '/100</span></div>' +
       '<div class="hp-bar"><div class="hp-bar-fill" style="width:' + hp + '%;background:' + hpColor + '"></div></div>' +
@@ -426,9 +460,20 @@ function resetGame() {
   fetch('/reset', { method: 'POST', headers: {'Content-Type':'application/json'} });
 }
 
+var pendingKickId = null;
+var pendingKickTimer = null;
 function kickPlayer(id) {
-  if (!confirm('Remove this player from the game?')) return;
-  fetch('/player/' + id, { method: 'DELETE' });
+  if (pendingKickId === id) {
+    clearTimeout(pendingKickTimer);
+    pendingKickId = null;
+    pendingKickTimer = null;
+    fetch('/player/' + id, { method: 'DELETE' });
+  } else {
+    if (pendingKickTimer) clearTimeout(pendingKickTimer);
+    pendingKickId = id;
+    pendingKickTimer = setTimeout(function() { pendingKickId = null; pendingKickTimer = null; }, 2000); // 2s to confirm
+    if (state) updateSidebar();
+  }
 }
 
 function esc(s) {
