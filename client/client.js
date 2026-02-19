@@ -21,9 +21,9 @@ const DEFAULT_SERVER    = 'https://api-pvp-production.up.railway.app';
 const POLL_INTERVAL_MS  = 200;
 const ACTION_RETRY_MS   = 80;
 const MAX_LOG_ENTRIES   = 120;
-const MOVEMENT_TICK_MS  = 150; // Continuous movement update rate (6-7 times per second)
 
 const MAX_AMMO    = 5;
+const MOVEMENT_TICK_MS  = 50; // Match server tick rate (50 ms) for continuous movement
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let serverUrl  = DEFAULT_SERVER;
@@ -373,8 +373,11 @@ function handleKeyDown(e) {
     lastMovementKey = keyId;
     // Add to held movement keys for continuous movement
     heldMovementKeys.add(keyId);
-    // Send immediate first move for responsiveness
-    sendAction('move', direction, null);
+    // Send immediate first move for responsiveness using the computed angle
+    var moveAngle = getMovementAngle();
+    if (moveAngle !== null) {
+      sendAction('move', null, moveAngle);
+    }
     // Start continuous movement if not already running
     if (!movementTimer) {
       startContinuousMovement();
@@ -409,6 +412,18 @@ function handleKeyUp(e) {
   }
 }
 
+// Calculate movement angle (degrees) from all currently held WASD keys.
+// Returns null if no movement keys are held.
+function getMovementAngle() {
+  var dx = 0, dy = 0;
+  if (heldMovementKeys.has('w')) dy -= 1;
+  if (heldMovementKeys.has('s')) dy += 1;
+  if (heldMovementKeys.has('a')) dx -= 1;
+  if (heldMovementKeys.has('d')) dx += 1;
+  if (dx === 0 && dy === 0) return null;
+  return ((Math.atan2(dy, dx) * 180 / Math.PI) + 360) % 360;
+}
+
 // Continuous movement loop
 function startContinuousMovement() {
   if (movementTimer) return; // Already running
@@ -419,12 +434,9 @@ function startContinuousMovement() {
       return;
     }
     
-    // Use the most recently pressed movement key
-    if (lastMovementKey && heldMovementKeys.has(lastMovementKey)) {
-      const mapping = KEY_MAP[lastMovementKey];
-      if (mapping && mapping.action === 'move') {
-        sendAction('move', mapping.direction, null);
-      }
+    var angle = getMovementAngle();
+    if (angle !== null) {
+      sendAction('move', null, angle);
     }
   }, MOVEMENT_TICK_MS);
 }
