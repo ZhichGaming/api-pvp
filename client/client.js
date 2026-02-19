@@ -21,7 +21,7 @@ const DEFAULT_SERVER    = 'https://api-pvp-production.up.railway.app';
 const POLL_INTERVAL_MS  = 200;
 const ACTION_RETRY_MS   = 80;
 const MAX_LOG_ENTRIES   = 120;
-const MOVEMENT_TICK_MS  = 50;  // Continuous movement update rate (20 times per second)
+const MOVEMENT_TICK_MS  = 150; // Continuous movement update rate (6-7 times per second)
 
 const MAX_AMMO    = 5;
 

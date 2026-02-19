@@ -15,8 +15,8 @@ module.exports = {
   PLAYER_HP: 100,
   PLAYER_AMMO: 5,
   PLAYER_MAX_AMMO: 5,
-  PLAYER_SPEED: 0.5,              // units per action (lower = smoother)
-  PLAYER_SIZE: 0.4,              // collision radius
+  PLAYER_SPEED: 1.5,              // units per action
+  PLAYER_SIZE: 0.5,              // collision radius
 
   // Combat
   BULLET_DAMAGE: 25,

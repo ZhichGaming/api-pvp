@@ -269,11 +269,16 @@ class GameEngine {
     for (const proj of this.projectiles.values()) {
       if (!proj.alive) continue;
 
+      // Swept collision: reconstruct where the bullet was before this tick's move
+      const prevX = proj.x - proj.dx;
+      const prevY = proj.y - proj.dy;
+
       for (const player of this.players.values()) {
         if (!player.alive) continue;
         if (player.id === proj.ownerId) continue; // no self-hit
 
-        const dist = Math.hypot(proj.x - player.x, proj.y - player.y);
+        // Minimum distance from the player centre to the bullet's path segment this tick
+        const dist = GameEngine._pointSegDist(player.x, player.y, prevX, prevY, proj.x, proj.y);
         if (dist < proj.size + player.size) {
           // Hit!
           const dmg = player.takeDamage(proj.damage);
@@ -451,6 +456,21 @@ class GameEngine {
       player.reset(spawn.x, spawn.y);
       positions.push({ x: spawn.x, y: spawn.y });
     }
+  }
+  // ── Static Helpers ─────────────────────────────
+
+  /**
+   * Minimum distance from point P to line segment A→B.
+   * Used for swept (continuous) bullet-vs-player collision detection so that
+   * fast bullets cannot tunnel through players between ticks.
+   */
+  static _pointSegDist(px, py, ax, ay, bx, by) {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return Math.hypot(px - ax, py - ay);
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+    return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
   }
 }
 

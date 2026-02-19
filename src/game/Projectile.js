@@ -12,7 +12,7 @@ class Projectile {
     this.alive = true;
     this.ticksLived = 0;
     this.maxLifetime = BULLET_MAX_LIFETIME_TICKS;
-    this.size = 0.15;             // collision radius
+    this.size = 0.25;             // collision radius
   }
 
   tick() {
