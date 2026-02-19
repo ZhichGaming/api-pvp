@@ -137,6 +137,28 @@
   .log-ok   { color: #2ecc71; }
   .log-warn { color: #e8a000; }
   .log-err  { color: #e74c3c; }
+
+  /* ── Game-over / win overlay ── */
+  #game-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 14px;
+    text-align: center;
+    padding: 24px;
+  }
+  #game-overlay.dead { background: rgba(30,0,0,0.82); }
+  #game-overlay.won  { background: rgba(0,30,10,0.82); }
+  #game-overlay.fin  { background: rgba(10,10,40,0.82); }
+  #overlay-title { font-size: 2.6em; font-weight: 900; letter-spacing: 3px; }
+  #game-overlay.dead #overlay-title { color: #e74c3c; }
+  #game-overlay.won  #overlay-title { color: #2ecc71; }
+  #game-overlay.fin  #overlay-title { color: #f1c40f; }
+  #overlay-sub { font-size: 1.1em; color: #ddd; }
 </style>
 </head>
 <body>
@@ -171,6 +193,10 @@
 
   <div id="canvas-area">
     <canvas id="viewport"></canvas>
+    <div id="game-overlay">
+      <div id="overlay-title"></div>
+      <div id="overlay-sub"></div>
+    </div>
   </div>
 
   <div id="status-log">
@@ -189,7 +215,7 @@ let renderSelf   = null;          // interpolated display position for self
 let renderNearby = {};            // id → {x, y} for nearby players
 let lastRafTimeP  = 0;
 let lastTickTimeP = 0;
-const BULLET_SPEED_PER_SEC = 100; // 5 units/tick × 20 ticks/s
+const BULLET_SPEED_PER_SEC = 20; // tick rate: proj.dx is already in units/tick, multiply by ticks/s to get units/s
 
 function lerp(a, b, t) { return a + (b - a) * t; }
 
@@ -319,6 +345,36 @@ function updateHUD() {
   modeEl.style.background  = bg;
   modeEl.style.color       = fg;
   modeEl.style.borderColor = borderColor;
+
+  // Death / win overlay
+  const overlay   = document.getElementById('game-overlay');
+  const titleEl   = document.getElementById('overlay-title');
+  const subEl     = document.getElementById('overlay-sub');
+  const finished  = playerState.mode === 'finished';
+  const winner    = playerState.winner;
+
+  if (!s.alive) {
+    // Player is dead
+    const winnerName = winner ? winner.username : null;
+    overlay.className = 'dead';
+    titleEl.textContent = '💀 YOU DIED';
+    subEl.textContent   = winnerName ? winnerName + ' wins!' : 'Waiting for game to end…';
+    overlay.style.display = 'flex';
+  } else if (finished && winner) {
+    // Game ended — show win or game-over
+    if (winner.id === playerId) {
+      overlay.className = 'won';
+      titleEl.textContent = '🏆 YOU WIN!';
+      subEl.textContent   = 'HP: ' + winner.hp + '  ·  Kills: ' + winner.kills;
+    } else {
+      overlay.className = 'fin';
+      titleEl.textContent = '🎮 GAME OVER';
+      subEl.textContent   = winner.username + ' wins!';
+    }
+    overlay.style.display = 'flex';
+  } else {
+    overlay.style.display = 'none';
+  }
 }
 
 // ── Viewport renderer — NEVER touches canvas.width / canvas.height ──

@@ -415,6 +415,7 @@ class GameEngine {
       nearbyPlayers,
       nearbyProjectiles,
       arena: this.arena.toJSON(),
+      winner: this.winner ? this.winner.toJSON() : null,
     };
   }
 

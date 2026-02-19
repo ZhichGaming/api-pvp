@@ -236,7 +236,7 @@ var state = null;
 var renderPositions = {}; // player id → {x, y} interpolated display coords
 var lastRafTime = 0;
 var lastTickTime = 0;
-var BULLET_SPEED_PER_SEC = 100; // matches server: 5 units/tick × 20 ticks/s
+var BULLET_SPEED_PER_SEC = 20; // tick rate: proj.dx is already in units/tick, multiply by ticks/s to get units/s
 
 function lerp(a, b, t) { return a + (b - a) * t; }
 
@@ -299,6 +299,11 @@ function tick() {
     // render() is driven by the requestAnimationFrame loop below
   }
   updateSidebar();
+  if (state.mode === 'finished' && state.winner) {
+    document.getElementById('winner-name').textContent  = state.winner.username + ' Wins!';
+    document.getElementById('winner-stats').textContent = 'HP: ' + state.winner.hp + '  |  Kills: ' + state.winner.kills;
+    document.getElementById('winner-banner').style.display = 'block';
+  }
 }
 
 function showLobby() {
