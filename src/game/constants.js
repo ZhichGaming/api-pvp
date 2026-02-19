@@ -33,7 +33,7 @@ module.exports = {
   MAX_ACTIONS_PER_SECOND: 30,
 
   // Battle
-  MAX_BATTLE_DURATION_TICKS: 100000, // 2 minutes at 20 TPS
+  MAX_BATTLE_DURATION_TICKS: 12000, // 2 minutes at 20 TPS
 
   // Directions map
   DIRECTIONS: {
